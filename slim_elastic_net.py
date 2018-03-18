@@ -1,3 +1,0 @@
-'''
-Ciao by Vava
-'''
