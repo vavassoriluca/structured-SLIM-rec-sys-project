@@ -1,9 +1,7 @@
 import pandas as pd
 import numpy as np
 from scipy import sparse as sps
-
 from Base.Cython.cosine_similarity import Cosine_Similarity
-from elastic_net_cython import Elastic_Net
 
 movies = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/movies.dat', 'r').readlines()]
 
@@ -34,9 +32,16 @@ rows = movies_df.Kind.astype('category', categories=kind_list).cat.codes
 data = np.ones(len(rows)).squeeze()
 icm = sps.csc_matrix((data, (rows, cols)), shape=(len(kind_list),len(movie_list)))
 
+print(len(data))
+print(icm.shape)
+print("start creating sim")
+sim = Cosine_Similarity(icm)
+similarity_Matrix = sim.compute_similarity()
+
 ratings = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/ratings.dat', 'r').readlines()]
 
 ratings_df = pd.DataFrame(ratings, columns = ['UserID', 'MovieID', 'Ratings', 'Timestamp'], dtype = int)
+
 
 print('Starting create unique list for urm')
 user_list = list(ratings_df.UserID.unique())
@@ -51,7 +56,4 @@ data = ratings_df.Ratings.astype(float)
 
 urm = sps.csc_matrix((data, (rows, cols)), shape=(len(user_list),len(movie_list)))
 
-el = Elastic_Net(icm, urm)
-el.fit()
-
-
+print(urm.shape)

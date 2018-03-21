@@ -4,7 +4,7 @@ from Cython.Distutils import build_ext
 import numpy
 
 
-ext_modules = [Extension("relevant_k",["algorythms/relevant_k.pyx"])]
+ext_modules = [Extension("elastic_net_cython",["elastic_net_cython.pyx"])]
 
 setup(
     cmdclass = {'build_ext': build_ext},
