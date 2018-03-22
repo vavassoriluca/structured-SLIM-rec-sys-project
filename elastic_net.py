@@ -5,7 +5,7 @@ from scipy import sparse as sps
 from Base.Cython.cosine_similarity import Cosine_Similarity
 from elastic_net_cython import Elastic_Net
 
-'''
+
 movies = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/movies.dat', 'r').readlines()]
 
 movies_df = pd.DataFrame(movies, columns = ['MovieID', 'Title', 'Kind'], dtype = int)
@@ -25,7 +25,7 @@ kind_list = list(movies_df.Kind.unique())
 print(len(movie_list))
 print(kind_list)
 
-
+'''
 print('Starting create rows and cols')
 rows = list()
 cols = list()
@@ -51,7 +51,8 @@ cols = ratings_df.MovieID.astype('category', categories=movie_list).cat.codes
 rows = ratings_df.UserID.astype('category', categories=user_list).cat.codes
 data = ratings_df.Ratings.astype(float)
 
-urm = sps.csc_matrix((data, (rows, cols)), shape=(len(user_list),len(movie_list)))
+urm = sps.csc_matrix((data, (rows, cols)), shape=(len(user_list),len(movie_list)), dtype=np.float32)
+sps.save_npz("files/urm.npz", urm)
 '''
 
 movie_list = np.load('files/movies_list.npy')
