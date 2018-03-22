@@ -407,7 +407,7 @@ cdef class Cosine_Similarity:
             rows = np.array(rows[0:sparse_data_pointer])
             cols = np.array(cols[0:sparse_data_pointer])
 
-            W_sparse = sps.csr_matrix((values, (rows, cols)),
+            W_sparse = sps.csc_matrix((values, (rows, cols)),
                                     shape=(self.n_items, self.n_items),
                                     dtype=np.float32)
 
