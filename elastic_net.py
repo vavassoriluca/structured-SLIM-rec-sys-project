@@ -5,7 +5,7 @@ from scipy import sparse as sps
 from Base.Cython.cosine_similarity import Cosine_Similarity
 from elastic_net_cython import Elastic_Net
 
-
+'''
 movies = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/movies.dat', 'r').readlines()]
 
 movies_df = pd.DataFrame(movies, columns = ['MovieID', 'Title', 'Kind'], dtype = int)
@@ -17,7 +17,7 @@ for i in range(len(movies_df.MovieID)):
     tempKind.extend(temp)
     tempID.extend([movies_df.MovieID[i] for y in range(len(temp))])
 
-movies_df = pd.DataFrame({"MovieID": tempID, "Kind": tempKind})
+movies_df = pd.DataFrame({"MovieID": tempID, "Kind": tempKind}).dropna(axis=0)
 
 print('Starting create unique list')
 movie_list = list(movies_df.MovieID.unique())
@@ -25,7 +25,7 @@ kind_list = list(movies_df.Kind.unique())
 print(len(movie_list))
 print(kind_list)
 
-'''
+
 print('Starting create rows and cols')
 rows = list()
 cols = list()
@@ -37,7 +37,7 @@ icm = sps.csc_matrix((data, (rows, cols)), shape=(len(kind_list),len(movie_list)
 
 ratings = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/ratings.dat', 'r').readlines()]
 
-ratings_df = pd.DataFrame(ratings, columns = ['UserID', 'MovieID', 'Ratings', 'Timestamp'], dtype = int)
+ratings_df = pd.DataFrame(ratings, columns = ['UserID', 'MovieID', 'Ratings', 'Timestamp'], dtype = int).dropna(axis=0)
 
 print('Starting create unique list for urm')
 user_list = list(ratings_df.UserID.unique())
@@ -53,6 +53,7 @@ data = ratings_df.Ratings.astype(float)
 
 urm = sps.csc_matrix((data, (rows, cols)), shape=(len(user_list),len(movie_list)), dtype=np.float32)
 sps.save_npz("files/urm.npz", urm)
+sps.save_npz("files/icm.npz", icm)
 '''
 
 movie_list = np.load('files/movies_list.npy')
