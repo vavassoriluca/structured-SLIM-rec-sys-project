@@ -15,9 +15,11 @@ cdef class Elastic_Net:
     cdef int[:] S_indices
     cdef int[:] S_indptr
     cdef float[:] S_data
+
     cdef int[:] R_i_indices
     cdef int[:] R_i_indptr
     cdef float[:] R_i_data
+
     cdef urm
     cdef icm
     cdef float l
@@ -26,7 +28,7 @@ cdef class Elastic_Net:
     cdef long epochs
 
 
-    def __init__(self, icm, urm, double l=0.001, double b=0.001, double g=0.001, int epochs=10):
+    def __init__(self, icm, urm, double l=0.001, double b=0.001, double g=0.001, int epochs=50):
 
         self.icm = icm
         self.urm = urm
@@ -39,8 +41,8 @@ cdef class Elastic_Net:
     cdef float vector_product(self, float[:] a, int[:] ind_a, float[:] b,  int[:] mask_b):
 
         cdef float result = 0.0
-        cdef int i = 0
-        cdef int j = 0
+        cdef int current_item = 0
+        cdef int j = 0, i = 0
 
         for i in ind_a:
 
@@ -67,108 +69,126 @@ cdef class Elastic_Net:
         cdef int[:] ri_indices
         cdef float[:] ri_data
         cdef float[:] R_iu
-        cdef int index, index_inner
-        cdef int i = 0
+        cdef int sample_index, index_inner, item_id
+        cdef int current_item = 0
         cdef int j = 0
         cdef int k = 0
         cdef int z = 0
-        cdef int s = 0
-        cdef int ep = 0
-        cdef float e = 0.0
-        cdef float r = 0.0
+        cdef int user_id = 0
+        cdef int current_epoch
+        cdef float error = 0.0
+        cdef float prediction = 0.0
         cdef float Si_data_prev = 0.0
         cdef long time_item = 0
         cdef long time_epoch = 0
 
-        for i in range(items):
+        for current_item in range(items):
 
-            print("\n\nITEM {}\n\n".format(i))
+            print("\n\nITEM {}\n\n".format(current_item))
             time_item = time.time()
 
             # Copy URM and set column i to 0, take the original column X
             R_i = self.urm.copy()
-            ri = R_i[:,i].copy()
-            R_i.data[R_i.indptr[i]:R_i.indptr[i+1]] = 0
+            ri = R_i[:, current_item].copy()
+            R_i.data[R_i.indptr[current_item]:R_i.indptr[current_item + 1]] = 0
             R_i = R_i.tocsr()
+
             self.R_i_indices = R_i.indices
             self.R_i_indptr = R_i.indptr
             self.R_i_data = R_i.data
 
 
             # Get the indices of cells of S to learn
-            Si_indices = self.S_indices[self.S_indptr[i]:self.S_indptr[i + 1]]
-            Si_data = self.S_data[self.S_indptr[i]:self.S_indptr[i + 1]]
+            Si_indices = self.S_indices[self.S_indptr[current_item]:self.S_indptr[current_item + 1]]
+            Si_data = self.S_data[self.S_indptr[current_item]:self.S_indptr[current_item + 1]]
 
             # Get the indices of the users who rated item i
 
             ri_data = ri.data
             ri_indices = np.array(ri.indices, dtype=np.int32)
 
-            z = 0
 
-            for k in Si_indices:
+            for index_inner in range(len(Si_indices)):
 
-                Si_mask[k] = 1
-                Si_dense[k] = Si_data[z]
-                z += 1
+                item_id = Si_indices[index_inner]
 
-            for ep in range(self.epochs):
+                Si_mask[item_id] = True
+                Si_dense[item_id] = Si_data[index_inner]
 
-                print("\n\nEPOCH {}".format(ep))
-                time_epoch = time.time()
 
-                for index in range(len(ri_indices)):
 
-                    #print("hello {}: {}".format(ep, time.time() - time_epoch))
 
-                    s = ri_indices[index]
+            for current_epoch in range(self.epochs):
 
-                    #print("s {}: {}".format(ep, time.time() - time_epoch))
+                #print("\n\nEPOCH {}".format(current_epoch))
 
-                    r = 0.0
-                    e = 0.0
-                    R_iu_data = self.R_i_data[self.R_i_indptr[s]:self.R_i_indptr[s+1]]
-                    #print("init {}: {}".format(ep, time.time() - time_epoch))
+                #time_epoch = time.time()
 
-                    R_iu_indices = self.R_i_indices[self.R_i_indptr[s]:self.R_i_indptr[s+1]]
+                #print("to begin {}: {}".format(current_epoch, time.time() - time_epoch))
 
-                    #print("init {}: {}".format(ep, time.time() - time_epoch))
+                for sample_index in range(len(ri_indices)):
 
-                    r = Elastic_Net.vector_product(self, R_iu_data, R_iu_indices, Si_dense, Si_mask)
-                    e = r - ri_data[s]
+                    user_id = ri_indices[sample_index]
 
-                    #print("dot {}: {}".format(ep, time.time() - time_epoch))
+                    R_iu_data = self.R_i_data[self.R_i_indptr[user_id]:self.R_i_indptr[user_id+1]]
+                    R_iu_indices = self.R_i_indices[self.R_i_indptr[user_id]:self.R_i_indptr[user_id+1]]
 
-                    z = 0
+                    #print("init {}: {}".format(current_epoch, time.time() - time_epoch))
+
+                    #prediction = Elastic_Net.vector_product(self, R_iu_data, R_iu_indices, Si_dense, Si_mask)
+
+                    prediction = 0.0
+
                     for index_inner in range(len(R_iu_indices)):
 
-                        j = R_iu_indices[index_inner]
+                        item_id = R_iu_indices[index_inner]
 
-                        if Si_mask[j] == 1:
-                            Si_data_prev = Si_dense[j]
-                            Si_dense[j] -= e*R_iu_data[z]*self.l + Si_dense[j]*self.b + self.g
+                        if Si_mask[item_id] == True:
+                            prediction += R_iu_data[index_inner] * Si_dense[item_id]
+
+
+
+                    error = prediction - ri_data[sample_index]
+
+                    #print("dot {}: {}".format(current_epoch, time.time() - time_epoch))
+
+
+                    for index_inner in range(len(R_iu_indices)):
+
+                        item_id = R_iu_indices[index_inner]
+
+                        if Si_mask[item_id] == True:
+                            Si_data_prev = Si_dense[item_id]
+                            Si_dense[item_id] -= error * R_iu_data[index_inner] * self.l + Si_dense[item_id] * self.b + self.g
                             #print("Si_prev: {}, Si_new: {}, e: {}, R_iu: {}".format(Si_data_prev, Si_dense[j], e, R_iu_data[z]))
-                        z += 1
 
-                    z = 0
-                    for z in range(len(Si_indices)):
-                        Si_data[z] = Si_dense[Si_indices[z]]
-
-                    #print("update {}: {}".format(ep, time.time() - time_epoch))
+                    #print("update {}: {}".format(current_epoch, time.time() - time_epoch))
 
                     #input()
 
 
-                print("Elapsed time epoch {}: {}".format(ep, time.time() - time_epoch))
+                for index_inner in range(len(Si_indices)):
+                    Si_data[index_inner] = Si_dense[Si_indices[index_inner]]
 
-            self.S_data[self.S_indptr[i]:self.S_indptr[i+1]:] = Si_data
 
-            for k in Si_indices:
 
-                Si_mask[k] = 0
-                Si_dense[k] = 0
+            self.S_data[self.S_indptr[current_item]:self.S_indptr[current_item + 1]:] = Si_data
 
-            print("Elapsed time item {}: {}".format(i, time.time() - time_item))
+            print("Elapsed time item {}: {} s, sample/sec {:.2f}".format(current_item, time.time() - time_item, len(ri_indices)*self.epochs/(time.time() - time_item)))
+
+
+
+            for index in range(len(Si_indices)):
+
+                item_id = Si_indices[index]
+
+                Si_mask[item_id] = False
+                Si_dense[item_id] = 0.0
+
+
+
+
+            print("Elapsed time item {}: {}".format(current_item, time.time() - time_item))
 
 
     def fit(self, topK = 100, shrink=0, normalize = True, mode = "cosine"):
