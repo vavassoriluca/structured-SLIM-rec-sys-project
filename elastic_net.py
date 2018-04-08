@@ -1,9 +1,7 @@
-import pandas as pd
 import numpy as np
 from scipy import sparse as sps
 
-from Base.Cython.cosine_similarity import Cosine_Similarity
-from elastic_net_cython import Elastic_Net
+from SLIM_Elastic_Net.Cython.elastic_net_cython import Elastic_Net
 
 '''
 movies = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/movies.dat', 'r').readlines()]

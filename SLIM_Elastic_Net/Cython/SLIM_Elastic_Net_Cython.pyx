@@ -7,9 +7,10 @@ cimport numpy as np
 from scipy import sparse as sps
 cimport cython
 from Base.Cython.cosine_similarity import Cosine_Similarity
+from Base.metrics import roc_auc, precision, recall, rr, map, ndcg
 import time
 
-cdef class Elastic_Net:
+cdef class SLIM_Elastic_Net_Cython:
 
     cdef S
     cdef int[:] S_indices
@@ -20,38 +21,30 @@ cdef class Elastic_Net:
     cdef int[:] R_i_indptr
     cdef float[:] R_i_data
 
-    cdef urm
+    cdef int[:] test_indices
+    cdef int[:] test_indptr
+    cdef float[:] test_data
+
+    cdef urm_train
+    cdef urm_test
     cdef icm
     cdef float l
     cdef float b
     cdef float g
     cdef long epochs
+    cdef int at
+    cdef int min_ratings_per_user
+    cdef bool exclude_seen
 
 
     def __init__(self, icm, urm, double l=0.001, double b=0.001, double g=0.001, int epochs=50):
 
         self.icm = icm
-        self.urm = urm
+        self.urm_train = urm
         self.l = l
         self.b = b
         self.g = g
         self.epochs = epochs
-
-    @cython.boundscheck(False) # turn off bounds-checking for entire function
-    cdef float vector_product(self, float[:] a, int[:] ind_a, float[:] b,  int[:] mask_b):
-
-        cdef float result = 0.0
-        cdef int current_item = 0
-        cdef int j = 0, i = 0
-
-        for i in ind_a:
-
-            if mask_b[i] == 1:
-                result += a[j] * b[i]
-
-            j += 1
-
-        return result
 
 
     @cython.boundscheck(False) # turn off bounds-checking for entire function
@@ -88,7 +81,7 @@ cdef class Elastic_Net:
             time_item = time.time()
 
             # Copy URM and set column i to 0, take the original column X
-            R_i = self.urm.copy()
+            R_i = self.urm_train.copy()
             ri = R_i[:, current_item].copy()
             R_i.data[R_i.indptr[current_item]:R_i.indptr[current_item + 1]] = 0
             R_i = R_i.tocsr()
@@ -200,6 +193,131 @@ cdef class Elastic_Net:
         self.S_data = self.S.data
         self.S_indptr = self.S.indptr
         print("\nRelevant K computed [ICM Similarity]")
-        Elastic_Net.learning_process(self)
+        SLIM_Elastic_Net_Cython.learning_process(self)
+
+
+    cpdef recommend(self, int user_id, bool exclude_seen, int n):
+
+        cdef float[:] scores
+
+        if n==None:
+            n=self.urm_train.shape[1]-1
+
+
+    def evaluateRecommendations(self, URM_test_new, int at=5, int minRatingsPerUser=1, bool exclude_seen=True):
+        """
+        Speed info:
+        - Sparse weighgs: batch mode is 2x faster than sequential
+        - Dense weighgts: batch and sequential speed are equivalent
+
+
+        :param URM_test_new:            URM to be used for testing
+        :param at: 5                    Length of the recommended items
+        :param minRatingsPerUser: 1     Users with less than this number of interactions will not be evaluated
+        :param exclude_seen: True       Whether to remove already seen items from the recommended items
+
+        :param mode: 'sequential', 'parallel', 'batch'
+        :return:
+        """
+
+        cdef long nusers
+        cdef int[:] rows
+        cdef int[:] num_ratings
+
+        self.urm_test = URM_test_new
+        self.test_data = URM_test_new.data
+        self.test_indices = URM_test_new.indices
+        self.test_indptr = URM_test_new.indptr
+        self.at = at
+        self.min_ratings_per_user = minRatingsPerUser
+        self.exclude_seen = exclude_seen
+
+        nusers = self.urm_test.shape[0]
+
+        # Prune users with an insufficient number of ratings
+        rows = self.urm_test.indptr
+        num_ratings = np.ediff1d(rows)
+        mask = num_ratings >= minRatingsPerUser
+        users_to_evaluate = np.arange(nusers, dtype=np.int32)[mask]
+
+        return SLIM_Elastic_Net_Cython.evaluateRecommendationsSequential(users_to_evaluate)
+
+
+    cdef get_user_relevant_items(self, int user_id):
+
+        return self.test_indices[self.test_indptr[user_id]:self.test_indptr[user_id + 1]]
+
+    cdef get_user_test_ratings(self, int user_id):
+
+        return self.test_data[self.test_indptr[user_id]:self.test_indptr[user_id + 1]]
+
+
+    cdef evaluateRecommendationsSequential(self, int[:] users_to_evaluate):
+
+        cdef long start_time = time.time()
+        cdef float roc_auc_, precision_, recall_, map_, mrr_, ndcg_
+        cdef int n_eval
+        cdef int index, index_isin
+        cdef int[:] recommended_items, relevant_items
+
+        roc_auc_, precision_, recall_, map_, mrr_, ndcg_ = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+        n_eval = 0
+
+        for index in range(len(users_to_evaluate)):
+
+            # Calling the 'evaluateOneUser' function instead of copying its code would be cleaner, but is 20% slower
+
+            # Being the URM CSR, the indices are the non-zero column indexes
+            relevant_items = self.get_user_relevant_items(users_to_evaluate[index])
+
+            n_eval += 1
+
+            recommended_items = SLIM_Elastic_Net_Cython.recommend(self ,users_to_evaluate[index], self.exclude_seen,
+                                               self.at)
+
+            is_relevant = np.in1d(recommended_items, relevant_items, assume_unique=True)
+
+            # evaluate the recommendation list with ranking metrics ONLY
+            roc_auc_ += roc_auc(is_relevant)
+            precision_ += precision(is_relevant)
+            recall_ += recall(is_relevant, relevant_items)
+            map_ += map(is_relevant, relevant_items)
+            mrr_ += rr(is_relevant)
+            ndcg_ += ndcg(recommended_items, relevant_items, relevance=self.get_user_test_ratings(users_to_evaluate[index]), at=self.at)
+
+
+
+            if n_eval % 10000 == 0 or n_eval==len(users_to_evaluate)-1:
+                print("Processed {} ( {:.2f}% ) in {:.2f} seconds. Users per second: {:.0f}".format(
+                                  n_eval,
+                                  100.0* float(n_eval+1)/len(users_to_evaluate),
+                                  time.time()-start_time,
+                                  float(n_eval)/(time.time()-start_time)))
+
+
+
+
+        if (n_eval > 0):
+            roc_auc_ /= n_eval
+            precision_ /= n_eval
+            recall_ /= n_eval
+            map_ /= n_eval
+            mrr_ /= n_eval
+            ndcg_ /= n_eval
+
+        else:
+            print("WARNING: No users had a sufficient number of relevant items")
+
+        results_run = {}
+
+        results_run["AUC"] = roc_auc_
+        results_run["precision"] = precision_
+        results_run["recall"] = recall_
+        results_run["map"] = map_
+        results_run["NDCG"] = ndcg_
+        results_run["MRR"] = mrr_
+
+        return (results_run)
+
 
 
