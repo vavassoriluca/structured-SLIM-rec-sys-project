@@ -9,6 +9,7 @@ cimport cython
 from Base.Cython.cosine_similarity import Cosine_Similarity
 from Base.metrics import roc_auc, precision, recall, rr, map, ndcg
 import time
+from libcpp cimport bool
 
 cdef class SLIM_Elastic_Net_Cython:
 
@@ -196,36 +197,24 @@ cdef class SLIM_Elastic_Net_Cython:
         SLIM_Elastic_Net_Cython.learning_process(self)
 
 
-    def recommend(self, user_id, n=None, exclude_seen=True, filterTopPop = False, filterCustomItems = False):
+    def recommend(self, user_id, n=None, exclude_seen=False, filterTopPop = False, filterCustomItems = False):
 
         if n==None:
-            n=self.URM_train.shape[1]-1
+            n=self.urm_train.shape[1]-1
 
         # compute the scores using the dot product
         if self.sparse_weights:
-            user_profile = self.URM_train[user_id]
+            user_profile = self.urm_train[user_id]
 
-            scores = user_profile.dot(self.W_sparse).toarray().ravel()
+            scores = user_profile.dot(self.S).toarray().ravel()    #sparse S
 
         else:
 
-            user_profile = self.URM_train.indices[self.URM_train.indptr[user_id]:self.URM_train.indptr[user_id + 1]]
-            user_ratings = self.URM_train.data[self.URM_train.indptr[user_id]:self.URM_train.indptr[user_id + 1]]
+            user_profile = self.urm_train.indices[self.urm_train.indptr[user_id]:self.urm_train.indptr[user_id + 1]]
+            user_ratings = self.urm_train.data[self.urm_train.indptr[user_id]:self.urm_train.indptr[user_id + 1]]
 
             relevant_weights = self.W[user_profile]
             scores = relevant_weights.T.dot(user_ratings)
-
-        if self.normalize:
-            # normalization will keep the scores in the same range
-            # of value of the ratings in dataset
-            rated = user_profile.copy()
-            rated.data = np.ones_like(rated.data)
-            if self.sparse_weights:
-                den = rated.dot(self.W_sparse).toarray().ravel()
-            else:
-                den = rated.dot(self.W).ravel()
-            den[np.abs(den) < 1e-6] = 1.0  # to avoid NaNs
-            scores /= den
 
         if exclude_seen:
             scores = self._filter_seen_on_scores(user_id, scores)
@@ -287,10 +276,11 @@ cdef class SLIM_Elastic_Net_Cython:
         # Prune users with an insufficient number of ratings
         rows = self.urm_test.indptr
         num_ratings = np.ediff1d(rows)
-        mask = num_ratings >= minRatingsPerUser
+        for i in range(num_ratings):
+            mask = i >= minRatingsPerUser
         users_to_evaluate = np.arange(nusers, dtype=np.int32)[mask]
 
-        return SLIM_Elastic_Net_Cython.evaluateRecommendationsSequential(users_to_evaluate)
+        return SLIM_Elastic_Net_Cython.evaluateRecommendationsSequential(self, users_to_evaluate)
 
 
     cdef get_user_relevant_items(self, int user_id):
