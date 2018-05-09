@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse as sps
 
-from SLIM_Elastic_Net.Cython.elastic_net_cython import Elastic_Net
+from SLIM_Elastic_Net.SLIM_Elastic_Net import SLIM_Elastic_Net
 
 '''
 movies = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/movies.dat', 'r').readlines()]
@@ -61,6 +61,7 @@ kind_list = np.load('files/kind_list.npy')
 urm = sps.load_npz("files/urm.npz")
 icm = sps.load_npz("files/icm.npz")
 
-el = Elastic_Net(icm, urm)
-el.fit()
+el = SLIM_Elastic_Net(icm, urm)
+el.fit(epochs=1)
+el.evaluateRecommendations()
 
