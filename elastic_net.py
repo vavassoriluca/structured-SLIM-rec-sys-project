@@ -58,10 +58,15 @@ movie_list = np.load('files/movies_list.npy')
 user_list = np.load('files/user_list.npy')
 kind_list = np.load('files/kind_list.npy')
 
-urm = sps.load_npz("files/urm.npz")
+train = sps.load_npz("files/train.npz")
+test = sps.load_npz("files/test.npz")
 icm = sps.load_npz("files/icm.npz")
 
-el = SLIM_Elastic_Net(icm, urm)
-el.fit(epochs=1)
-el.evaluateRecommendations()
+el = SLIM_Elastic_Net(icm, train)
+el.fit(epochs=50)
+print(el.evaluateRecommendations(test))
 
+
+'''
+{'AUC': 0.14041332760923478, 'precision': 0.06498282770463865, 'recall': 0.0029702795654990254, 'map': 0.03951178210265244, 'NDCG': 0.008137593858484806, 'MRR': 0.14227723716847893}
+'''

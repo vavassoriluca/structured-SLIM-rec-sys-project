@@ -28,5 +28,3 @@ class SLIM_Elastic_Net(Recommender, Similarity_Matrix_Recommender):
 
         self.W_sparse = self.elastic_net.fit(topK=k, shrink=shrink, normalize=normalize, mode="cosine")
         self.W_sparse = check_matrix(self.W_sparse, 'csr')
-
-        print(self.W_sparse)
