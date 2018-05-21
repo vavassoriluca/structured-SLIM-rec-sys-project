@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import sparse as sps
 
-from SLIM_Elastic_Net.SLIM_Elastic_Net import SLIM_Elastic_Net
+from SLIM_Elastic_Net_Structured.SLIM_Elastic_Net_Structured import SLIM_Elastic_Net_Structured
 
 '''
 movies = [i.strip().split("::") for i in open('/home/luca/Scaricati/ml-10M100K/movies.dat', 'r').readlines()]
@@ -62,8 +62,8 @@ train = sps.load_npz("files/train.npz")
 test = sps.load_npz("files/test.npz")
 icm = sps.load_npz("files/icm.npz")
 
-el = SLIM_Elastic_Net(icm, train)
-el.fit(epochs=50)
+el = SLIM_Elastic_Net_Structured(icm, train)
+el.fit(epochs=1)
 print(el.evaluateRecommendations(test))
 
 
