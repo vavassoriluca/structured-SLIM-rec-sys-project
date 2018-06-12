@@ -62,6 +62,8 @@ train = sps.load_npz("files/train.npz")
 test = sps.load_npz("files/test.npz")
 icm = sps.load_npz("files/icm.npz")
 
+print(type(icm))
+
 el = SLIM_Elastic_Net_Structured(icm, train)
 el.fit(epochs=1)
 print(el.evaluateRecommendations(test))

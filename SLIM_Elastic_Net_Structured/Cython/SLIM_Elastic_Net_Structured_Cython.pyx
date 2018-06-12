@@ -7,7 +7,7 @@ cimport numpy as np
 from scipy import sparse as sps
 cimport cython
 from Base.Cython.cosine_similarity import Cosine_Similarity
-from Base.metrics import roc_auc, precision, recall, rr, map, ndcg
+from Base.Recommender_utils import check_matrix
 import time
 import sys
 
@@ -108,7 +108,7 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
         cdef long time_epoch = 0
         cdef long time_start = 0
 
-        print("\nStart the learnign process:")
+        print("\nStart the learning process:")
 
         R_i_csc = self.urm_train.copy()
         R_i = self.urm_train.tocsr()
@@ -193,7 +193,7 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
 
             #print("Elapsed time item {}: {}".format(current_item, time.time() - time_item))
 
-            if current_item != 0 and (current_item % 10000==0 or current_item == items):
+            if current_item != 0 and (current_item % 1000==0 or current_item == items):
 
                 itemPerSec = current_item/(time.time()-time_start)
                 print("Processed {} ( {:2.0f} % ), {:.2f} column/sec, elapsed time {:.2f} min".format(
@@ -215,6 +215,12 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
     def fit(self, topK = 100, shrink=100, normalize = True, mode = "cosine"):
 
         print("SLIM ElasticNet with structure, beginning of the fit process.\n")
+
+        if(self.urm_train.shape[1] != self.icm.shape[1]):
+            self.icm = self.icm.T
+
+        self.urm_train = check_matrix(self.urm_train, 'csc')
+        self.icm = check_matrix(self.icm, 'csc')
 
         sim_comp = Cosine_Similarity(self.icm, topK, shrink, normalize, mode)
         self.S = sim_comp.compute_similarity()
