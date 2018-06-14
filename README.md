@@ -39,9 +39,11 @@ evaluation = recommender.evaluateRecommendations(URM_test)
 ```
 ### Results comparison: 
 
-TheMoviesDataset (ICM sparcity: )
+#### TheMoviesDataset
 
-|              | KNN collaborative | KNN content base  | SLIM ElasticNet  | Structured SLIM  |
+ICM: shape = (45433, 49102), sparcity: 0.9996608321471501
+
+|              | KNN collaborative | KNN content based  | SLIM ElasticNet  | Structured SLIM  |
 | -------------|:-----------------:| -----------------:| ----------------:| ----------------:|
 |AUC           |0.16328739386752908|0.10482457612266392|0.2263805145071017|0.0712925984345927|
 |MRR           |0.18905935960684533|0.11191219297558800|0.2645136270923570|0.0714445525835901|
@@ -50,9 +52,11 @@ TheMoviesDataset (ICM sparcity: )
 |Precision     |0.12380611457273409|0.05838935934579915|0.1696978510621871|0.0329138280140035|
 |Recall        |0.00925958646390481|0.00361115681867504|0.0149399014209997|0.0023711798147415|
 
-Movielens26 with GENRES (ICM sparcity: )
+#### MovieLens 26M with GENRES 
 
-|              | KNN collaborative | KNN content base  | SLIM ElasticNet  | Structured SLIM  |
+ICM: shape = (45843, 20), sparcity: 0.9061797875357197
+
+|              | KNN collaborative | KNN content based  | SLIM ElasticNet  | Structured SLIM  |
 | -------------|:-----------------:| -----------------:| ----------------:| ----------------:|
 |AUC           |0.16531220636270120|0.02413698599489908|0.2271634077587352|0.0792913926051874|
 |MRR           |0.19139018151447576|0.02351167837487133|0.2636167539188936|0.0787235073903345|
@@ -61,9 +65,11 @@ Movielens26 with GENRES (ICM sparcity: )
 |Precision     |0.12431652422927689|0.01177681328023700|0.1680321267170991|0.0339791489552076|
 |Recall        |0.00957347798587911|0.00061475823269545|0.0146979726141915|0.0021920817766374|
 
-Movielens26 with TAGS (ICM sparcity: )
+#### MovieLens 26M with TAGS
 
-|              | KNN collaborative | KNN content base  | SLIM ElasticNet  | Structured SLIM  |
+ICM: shape = (45843, 53508), sparcity: 0.9998916544847266
+
+|              | KNN collaborative | KNN content based  | SLIM ElasticNet  | Structured SLIM  |
 | -------------|:-----------------:| -----------------:| ----------------:| ----------------:|
 |AUC           |0.16531220636270120|0.09306531239279914|0.2271456963025925|0.0320176517965009|
 |MRR           |0.19139018151447576|0.09721575909436314|0.2636120930093823|0.0309206601339358|
@@ -71,6 +77,10 @@ Movielens26 with TAGS (ICM sparcity: )
 |Map           |0.09108725657623755|0.03198887534117678|0.1263297574835752|0.0075111395737320|
 |Precision     |0.12431652422927689|0.04987471475232986|0.1680433128999261|0.0148082688263470|
 |Recall        |0.00957347798587911|0.00310033025947884|0.0146982335097261|0.0011481825420549|
+
+### Conclusions
+
+As showed by the metrics, the algorithm we implemented is sensible to the sparcity of the ICM matrix it receives as input. In the case of the MovieLens 26M dataset, considering the ICM constructed with the genres with a sparcity near to 90%, the **Structured SLIM** trained a similarity matrix whose *MAP is 4.5x better* than the **KNN Content Based** algorithm.
 
 ### Authors: 
 *Alex Porciani, Luca Vavassori*
