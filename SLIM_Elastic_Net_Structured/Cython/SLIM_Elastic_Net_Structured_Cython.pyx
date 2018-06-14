@@ -121,7 +121,6 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
 
         for current_item in range(items):
 
-            #print("\n\nITEM {}\n\n".format(current_item))
             time_item = time.time()
 
             # Copy URM and set column i to 0, take the original column X
@@ -137,6 +136,7 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
             ri_data = ri.data
             ri_indices = np.array(ri.indices, dtype=np.int32)
 
+            # Create a dense version of the sparse vector related to item i
 
             for index_inner in range(len(Si_indices)):
 
@@ -145,8 +145,11 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
                 Si_mask[item_id] = True
                 Si_dense[item_id] = Si_data[index_inner]
 
+            # Update the weights of the cells related to item i for every epoch
 
             for current_epoch in range(self.epochs):
+
+                # ri_indices corresponds to users who rated item i
 
                 for sample_index in range(len(ri_indices)):
 
@@ -157,6 +160,8 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
 
                     prediction = 0.0
 
+                    # Compute the prediction
+
                     for index_inner in range(len(R_iu_indices)):
 
                         item_id = R_iu_indices[index_inner]
@@ -165,6 +170,7 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
                             prediction += R_iu_data[index_inner] * Si_dense[item_id]
 
                     error = prediction - ri_data[sample_index]
+
 
                     for index_inner in range(len(R_iu_indices)):
 
@@ -182,6 +188,7 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
 
             #print("Elapsed time item {}: {} s, sample/sec {:.2f}".format(current_item, time.time() - time_item, len(ri_indices)*self.epochs/(time.time() - time_item)))
 
+            # Reinizialize to zero the dense vector
 
             for index in range(len(Si_indices)):
 
@@ -216,12 +223,12 @@ cdef class SLIM_Elastic_Net_Structured_Cython:
 
         print("SLIM ElasticNet with structure, beginning of the fit process.\n")
 
+        # Compute the transpose if the items are on the rows instead of the columns
         if(self.urm_train.shape[1] != self.icm.shape[1]):
             self.icm = self.icm.T
 
-        self.urm_train = check_matrix(self.urm_train, 'csc')
-        self.icm = check_matrix(self.icm, 'csc')
-
+        # Compute the similarity among items using the ICM
+        # Cells with a value greater than 0 will be the cells to learn
         sim_comp = Cosine_Similarity(self.icm, topK, shrink, normalize, mode)
         self.S = sim_comp.compute_similarity()
         self.S_indices = self.S.indices

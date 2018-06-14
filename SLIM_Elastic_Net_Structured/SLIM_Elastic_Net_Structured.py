@@ -20,6 +20,8 @@ class SLIM_Elastic_Net_Structured(Recommender, Similarity_Matrix_Recommender):
 
         # CSC is required during evaluation
         # Items must be on the columns in both URM and ICM
+        # If the ICM is passed with items on the rows, the algorithm will automatically
+        # compute the transpose
         self.URM_train = check_matrix(URM_train, 'csc')
         self.ICM = check_matrix(ICM, 'csc')
 
